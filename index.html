@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KueManager V2.1</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f4f5f7;color:#202124;font-family:Arial,sans-serif}
+.header{background:linear-gradient(135deg,#d71920,#ff4772);color:white;padding:28px 18px 58px;border-radius:0 0 28px 28px}
+.header h1{margin:0;font-size:30px}.header p{margin:8px 0 0;font-size:15px}
+.wrap{max-width:720px;margin:-35px auto 30px;padding:0 14px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.card,.box{background:white;border-radius:18px;padding:18px;box-shadow:0 5px 18px rgba(0,0,0,.07)}
+.card span{font-size:14px;color:#777}.card b{display:block;font-size:22px;margin-top:8px}
+.box{margin-top:15px}.box h2{font-size:19px;margin:0 0 14px}
+input{width:100%;padding:13px;border:1px solid #ddd;border-radius:10px;margin:6px 0 10px;font-size:15px}
+label{font-size:13px;font-weight:bold}
+button{width:100%;border:0;border-radius:10px;padding:13px;background:#d71920;color:#fff;font-weight:bold;font-size:15px;margin-top:5px}
+.item{background:#f8f8f8;border-radius:11px;padding:12px;margin:8px 0}
+.small{font-size:12px;color:#777;margin-top:4px}
+.good{color:#087f23}.bad{color:#c62828}
+.reset{background:#222;margin-top:18px}
+@media(max-width:420px){.card b{font-size:19px}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🍰 KueManager V2.1</h1>
+  <p>Manajemen bisnis kue basah Hikmah Kue</p>
+</div>
+
+<div class="wrap">
+
+  <div class="grid">
+    <div class="card"><span>📦 Kue Masuk</span><b id="masuk">0</b></div>
+    <div class="card"><span>🛒 Terjual</span><b id="terjual">0</b></div>
+    <div class="card"><span>📊 Stok</span><b id="stok">0</b></div>
+    <div class="card"><span>💰 Laba</span><b id="laba">Rp0</b></div>
+  </div>
+
+  <div class="box">
+    <h2>📦 Tambah Kue Masuk</h2>
+    <label>Jenis kue</label>
+    <input id="jenis" placeholder="Contoh: Semangka">
+    <label>Jumlah</label>
+    <input id="jumlah" type="number" placeholder="Contoh: 100">
+    <label>Harga beli per biji</label>
+    <input id="beli" type="number" placeholder="Contoh: 1600">
+    <label>Nama supplier/pembuat</label>
+    <input id="supplier" placeholder="Contoh: Bu Siti">
+    <button onclick="masuk()">+ Tambahkan Kue</button>
+  </div>
+
+  <div class="box">
+    <h2>🛒 Catat Penjualan</h2>
+    <label>Jenis kue</label>
+    <input id="jualJenis" placeholder="Contoh: Semangka">
+    <label>Jumlah terjual</label>
+    <input id="jualJumlah" type="number" placeholder="Contoh: 80">
+    <label>Harga jual per biji</label>
+    <input id="jualHarga" type="number" placeholder="Contoh: 1700">
+    <label>Nama pembeli/reseller</label>
+    <input id="pembeli" placeholder="Contoh: Toko A">
+    <button onclick="jual()">+ Catat Penjualan</button>
+  </div>
+
+  <div class="box">
+    <h2>📊 Keuangan</h2>
+    <div class="item"><b>Omzet</b><div id="omzet">Rp0</div></div>
+    <div class="item"><b>HPP kue terjual</b><div id="hpp">Rp0</div></div>
+    <div class="item"><b>Laba kotor</b><div id="laba2">Rp0</div></div>
+    <div class="item"><b>Nilai stok</b><div id="nilai">Rp0</div></div>
+  </div>
+
+  <div class="box">
+    <h2>📋 Stok Kue</h2>
+    <div id="stokList"><div class="small">Belum ada stok.</div></div>
+  </div>
+
+  <div class="box">
+    <h2>🧾 Riwayat</h2>
+    <div id="riwayat"><div class="small">Belum ada transaksi.</div></div>
+  </div>
+
+  <button class="reset" onclick="resetApp()">⚠️ Reset Semua Data</button>
+</div>
+
+<script>
+var data = {
+  masuk: [],
+  jual: []
+};
+
+try {
+  var tersimpan = localStorage.getItem("KueManager21");
+  if (tersimpan) data = JSON.parse(tersimpan);
+} catch(e) {}
+
+function simpan(){
+  try {
+    localStorage.setItem("KueManager21", JSON.stringify(data));
+  } catch(e) {}
+}
+
+function rupiah(n){
+  return "Rp " + Math.round(n).toLocaleString("id-ID");
+}
+
+function stokJenis(nama){
+  var total = 0;
+  data.masuk.forEach(function(x){
+    if(x.jenis.toLowerCase() === nama.toLowerCase()) total += x.jumlah;
+  });
+  data.jual.forEach(function(x){
+    if(x.jenis.toLowerCase() === nama.toLowerCase()) total -= x.jumlah;
+  });
+  return total;
+}
+
+function modalRata(nama){
+  var jumlah = 0;
+  var modal = 0;
+  data.masuk.forEach(function(x){
+    if(x.jenis.toLowerCase() === nama.toLowerCase()){
+      jumlah += x.jumlah;
+      modal += x.jumlah * x.harga;
+    }
+  });
+  return jumlah ? modal / jumlah : 0;
+}
+
+function render(){
+  var masukTotal = 0;
+  var jualTotal = 0;
+  var omzet = 0;
+  var hpp = 0;
+
+  data.masuk.forEach(function(x){
+    masukTotal += x.jumlah;
+  });
+
+  data.jual.forEach(function(x){
+    jualTotal += x.jumlah;
+    omzet += x.jumlah * x.harga;
+    hpp += x.jumlah * modalRata(x.jenis);
+  });
+
+  var stokTotal = masukTotal - jualTotal;
+  var laba = omzet - hpp;
+
+  document.getElementById("masuk").textContent = masukTotal;
+  document.getElementById("terjual").textContent = jualTotal;
+  document.getElementById("stok").textContent = stokTotal;
+  document.getElementById("laba").textContent = rupiah(laba);
+  document.getElementById("omzet").textContent = rupiah(omzet);
+  document.getElementById("hpp").textContent = rupiah(hpp);
+  document.getElementById("laba2").textContent = rupiah(laba);
+
+  var jenis = [];
+  data.masuk.forEach(function(x){
+    if(jenis.indexOf(x.jenis) === -1) jenis.push(x.jenis);
+  });
+  data.jual.forEach(function(x){
+    if(jenis.indexOf(x.jenis) === -1) jenis.push(x.jenis);
+  });
+
+  var nilaiStok = 0;
+  var html = "";
+
+  jenis.forEach(function(nama){
+    var s = stokJenis(nama);
+    if(s > 0) nilaiStok += s * modalRata(nama);
+    html += '<div class="item"><b>🍰 '+nama+'</b>Stok: '+s+' biji<div class="small">Modal rata-rata: '+rupiah(modalRata(nama))+'/biji</div></div>';
+  });
+
+  document.getElementById("nilai").textContent = rupiah(nilaiStok);
+  document.getElementById("stokList").innerHTML = html || '<div class="small">Belum ada stok.</div>';
+
+  var riwayat = [];
+
+  data.masuk.forEach(function(x){
+    riwayat.push('<div class="item">📦 <b>Masuk</b> +'+x.jumlah+' '+x.jenis+'<div class="small">'+x.supplier+' • '+x.tanggal+'</div></div>');
+  });
+
+  data.jual.forEach(function(x){
+    riwayat.push('<div class="item">🛒 <b>Terjual</b> -'+x.jumlah+' '+x.jenis+'<div class="small">'+x.pembeli+' • '+x.tanggal+'</div></div>');
+  });
+
+  document.getElementById("riwayat").innerHTML =
+    riwayat.length ? riwayat.reverse().slice(0,30).join("") :
+    '<div class="small">Belum ada transaksi.</div>';
+}
+
+function masuk(){
+  var jenis = document.getElementById("jenis").value.trim();
+  var jumlah = Number(document.getElementById("jumlah").value);
+  var beli = Number(document.getElementById("beli").value);
+  var supplier = document.getElementById("supplier").value.trim() || "Supplier";
+
+  if(!jenis || jumlah <= 0 || beli < 0){
+    alert("Isi jenis, jumlah, dan harga beli dengan benar.");
+    return;
+  }
+
+  data.masuk.push({
+    jenis: jenis,
+    jumlah: jumlah,
+    harga: beli,
+    supplier: supplier,
+    tanggal: new Date().toLocaleString("id-ID")
+  });
+
+  simpan();
+  render();
+
+  document.getElementById("jenis").value = "";
+  document.getElementById("jumlah").value = "";
+  document.getElementById("beli").value = "";
+  document.getElementById("supplier").value = "";
+
+  alert("Kue berhasil ditambahkan!");
+}
+
+function jual(){
+  var jenis = document.getElementById("jualJenis").value.trim();
+  var jumlah = Number(document.getElementById("jualJumlah").value);
+  var harga = Number(document.getElementById("jualHarga").value);
+  var pembeli = document.getElementById("pembeli").value.trim() || "Pembeli";
+
+  if(!jenis || jumlah <= 0 || harga < 0){
+    alert("Isi jenis, jumlah, dan harga jual dengan benar.");
+    return;
+  }
+
+  var stok = stokJenis(jenis);
+
+  if(stok <= 0){
+    alert("Jenis kue tersebut belum ada di stok.");
+    return;
+  }
+
+  if(jumlah > stok){
+    alert("Stok tidak cukup! Stok "+jenis+" hanya "+stok+" biji.");
+    return;
+  }
+
+  data.jual.push({
+    jenis: jenis,
+    jumlah: jumlah,
+    harga: harga,
+    pembeli: pembeli,
+    tanggal: new Date().toLocaleString("id-ID")
+  });
+
+  simpan();
+  render();
+
+  document.getElementById("jualJenis").value = "";
+  document.getElementById("jualJumlah").value = "";
+  document.getElementById("jualHarga").value = "";
+  document.getElementById("pembeli").value = "";
+
+  alert("Penjualan berhasil dicatat!");
+}
+
+function resetApp(){
+  if(confirm("Yakin ingin menghapus semua data?")){
+    data = {masuk:[], jual:[]};
+    simpan();
+    render();
+  }
+}
+
+render();
+</script>
+
+</body>
+</html>
